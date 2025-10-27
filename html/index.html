@@ -1,15 +1,340 @@
-<!DOCTYPE html>
-<html lang = "ja">
+<!doctype html>
+<html lang="ja">
 <head>
-    <meta charset = "UTF-8">
-    <link rel="stylesheet" href="index.css">
-    <title>GitHub連携テスト</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Bad UI - 飲食オーダー（卒業制作用）</title>
+<style>
+  /* ---------- 全体（視覚的にごちゃごちゃするように意図的に作成） ---------- */
+  :root{
+    --accent:#A93F2C; /* フレイムフォレスト（ブランドカラー） */
+    --bg:#fff7f5;
+  }
+  html,body{height:100%;margin:0;font-family: 'Yu Gothic', 'Hiragino Kaku Gothic ProN', sans-serif;background:var(--bg);color:#222}
+  .container{max-width:1100px;margin:20px auto;padding:10px}
+
+  /* ヘッダー：情報を詰め込みすぎる（Bad） */
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .brand{display:flex;align-items:center;gap:10px}
+  .brand .logo{width:72px;height:72px;background:linear-gradient(90deg,var(--accent),#ffb199);border-radius:12px}
+  .brand h1{margin:0;font-size:20px}
+  /* トップにプロモBannerが複数スライド風に並ぶ（情報過多） */
+  .promo-row{display:flex;gap:10px;overflow:auto;padding:8px 0}
+  .promo{flex:0 0 360px;height:100px;border-radius:8px;padding:12px;background:linear-gradient(45deg,#ffd4c2,#ffe9e1);box-shadow:0 2px 6px rgba(0,0,0,0.08)}
+
+  /* グローバルナビ：多階層で複雑 */
+  nav.global{margin-top:12px;border-top:2px solid rgba(0,0,0,0.05);padding-top:8px;display:flex;gap:8px}
+  .nav-level{background:#fff;padding:8px;border-radius:6px;box-shadow:0 1px 2px rgba(0,0,0,0.03)}
+  .nav-level select{border:none;background:transparent;font-size:14px}
+
+  /* 左サイド：フィルターが長く展開されて、適用ボタンが見つけにくい */
+  .layout{display:flex;gap:16px;margin-top:16px}
+  .aside{width:260px}
+  .filter-card{background:#fff;padding:12px;border-radius:8px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+  .filter-card h3{margin:0 0 8px 0;font-size:14px}
+  .filter-list{max-height:220px;overflow:auto;border:1px dashed #e0e0e0;padding:6px}
+  .filter-list label{display:block;margin-bottom:6px}
+  .apply-btn{display:block;margin-top:8px;padding:8px;border-radius:6px;background:#eee;text-align:center;cursor:pointer}
+
+  /* メイン：大量の料理カードを詰め込む（視覚的雑多） */
+  .main{flex:1}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .card{background:#fff;border-radius:8px;padding:10px;position:relative;overflow:hidden;min-height:210px;box-shadow:0 2px 6px rgba(0,0,0,0.06)}
+  .card img{width:100%;height:110px;object-fit:cover;border-radius:6px}
+  .card h4{margin:8px 0 4px 0;font-size:15px}
+  .card p{margin:0;font-size:13px;color:#666}
+  .card .meta{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+  .tiny-btn{padding:6px 8px;border-radius:20px;border:1px solid #ddd;background:#fff;font-size:13px;cursor:pointer}
+  .add-btn{position:absolute;right:10px;bottom:10px;background:var(--accent);color:#fff;padding:8px 10px;border-radius:6px;border:none;cursor:pointer}
+  /* CTAが小さく目立たない／重なっている */
+
+  /* サイドバーカート：常に右に縦長で出す（煩雑） */
+  .cart{width:320px;background:#fff;padding:12px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);height:70vh;overflow:auto}
+  .cart h3{margin-top:0}
+  .cart .item{display:flex;justify-content:space-between;margin-bottom:10px}
+  .cart .fee-note{font-size:13px;color:#a00}
+
+  /* モバイルで見ても改悪な挙動（意図的） */
+  @media(max-width:800px){
+    .grid{grid-template-columns:repeat(2,1fr)}
+    .aside{display:block}
+    .cart{display:none}
+  }
+
+  /* 重ね要素（バナーが料理カードに被る） */
+  .floating-banner{position:relative;margin-top:10px}
+  .floating-banner .overlap{position:absolute;left:20px;top:-30px;background:linear-gradient(90deg,#fff1f0,#fff6f5);padding:8px;border-radius:6px;border:1px solid #ffd1c8}
+
+  /* ダイアログ風に複数画面遷移を強いる */
+  .modal{position:fixed;left:0;top:0;width:100%;height:100%;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.35)}
+  .modal .box{background:#fff;padding:18px;border-radius:10px;max-width:500px;width:92%}
+
+  /* 意図的にコントラストが低い明細 */
+  .summary{background:#fff7f7;padding:8px;border-radius:6px;margin-top:12px}
+  .muted{color:#9a9a9a;font-size:13px}
+</style>
 </head>
 <body>
-    <header>
-        <img alt="東京国際工科専門職大学 斎藤研究室 調査アンケート用サイト" src="../images/header.png">
-    <h1>こんにちわ</h1>
-    <p>これはgithubとvscodeの連携テストです</p>
-    <p2>あ<p2>
+<div class="container">
+  <header>
+    <div class="brand">
+      <div class="logo" aria-hidden="true"></div>
+      <div>
+        <h1>どうしようレストラン（Bad UI）</h1>
+        <!-- ヘッダーに住所・クーポン・ログインを詰め込みすぎ -->
+        <div style="font-size:12px;color:#555;margin-top:4px">
+          <span>現在地: 新宿区</span> &nbsp;|&nbsp; <span>クーポン: 3件あり</span> &nbsp;|&nbsp; <span>ログイン</span>
+        </div>
+      </div>
+    </div>
+    <!-- 右上にも小さな操作群を追加して混乱させる -->
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="tiny-btn">ヘルプ</button>
+      <button class="tiny-btn" onclick="openCart()">カート</button>
+    </div>
+  </header>
+
+  <!-- 複数のプロモーションバナーを同一行にねじ込む（情報過多） -->
+  <div class="promo-row">
+    <div class="promo">今だけ！セット割<br><small>詳細は忘れてください</small></div>
+    <div class="promo">配送料無料キャンペーン（条件あり）</div>
+    <div class="promo">人気ランキング（毎日変わる）</div>
+  </div>
+
+  <!-- グローバルナビ：複数段のプルダウン。多階層で辿りづらい -->
+  <nav class="global">
+    <div class="nav-level">カテゴリー: <select><option>全部</option><option>前菜</option><option>メイン</option></select></div>
+    <div class="nav-level">料理の国: <select><option>Japan</option><option>Italian</option></select></div>
+    <div class="nav-level">価格帯: <select><option>〜1000円</option><option>1000〜2000円</option></select></div>
+    <div class="nav-level">プロモ: <select><option>あり</option><option>なし</option></select></div>
+  </nav>
+
+  <div class="layout">
+    <aside class="aside">
+      <!-- フィルター群を大量に表示。適用ボタンは小さく目立たない -->
+      <div class="filter-card">
+        <h3>絞り込み（長い）</h3>
+        <div class="filter-list">
+          <label><input type="checkbox"> ベジタリアン</label>
+          <label><input type="checkbox"> グルテンフリー</label>
+          <label><input type="checkbox"> ナッツ除去</label>
+          <label><input type="checkbox"> 低カロリー</label>
+          <label><input type="checkbox"> ランチセット</label>
+          <label><input type="checkbox"> ランキング上位</label>
+          <label><input type="checkbox"> 新着</label>
+          <label><input type="checkbox"> シェフおすすめ</label>
+          <label><input type="checkbox"> テイクアウト可</label>
+        </div>
+        <div class="apply-btn" onclick="applyFilters()">適用</div>
+      </div>
+
+      <!-- 目立たない注意書き：手数料はチェックアウト直前に表示（驚きの原因） -->
+      <div class="filter-card">
+        <h3>注意</h3>
+        <p class="muted">※ 配達手数料やサービス料は、注文の最後に表示されます。合計はその時まで確定しません。</p>
+      </div>
+
+      <!-- 重ねるバナーを意図的に配置 -->
+      <div class="filter-card floating-banner">
+        <div class="overlap">割引バナー（重要？）</div>
+        <p>今日のおすすめ。色々載せすぎて混乱します。</p>
+      </div>
+    </aside>
+
+    <main class="main">
+      <!-- メニュー一覧（カードを大量に詰め込む） -->
+      <div style="display:flex;align-items:center;gap:12px;justify-content:space-between">
+        <h2>メニュー</h2>
+        <!-- 検索はあるが動作が分かりにくい（プレースホルダも長い） -->
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="text" placeholder="ここに検索ワードを入れて、絞り込み後にApplyボタンを押してください" style="padding:8px;border-radius:6px;border:1px solid #ddd;width:320px">
+          <button class="tiny-btn" onclick="fakeSearch()">検索</button>
+        </div>
+      </div>
+
+      <div class="grid" id="menuGrid">
+        <!-- カードを多数生成（サンプルデータ） -->
+        <!-- 各カードはCTAが埋もれ、詳細やオプションが別画面で何度も出る（煩雑） -->
+      </div>
+
+      <!-- 説明的テキストを大量に入れてページを長くする -->
+      <section style="margin-top:16px;background:#fff;padding:12px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.03)">
+        <h3>よくある質問（山のように並ぶ）</h3>
+        <p class="muted">配達時間はエリアにより異なります。画面のどこかに記載しているはずです。見つからない場合はヘルプを押してください。</p>
+      </section>
+
+    </main>
+
+    <aside class="cart" id="sideCart">
+      <h3>カート</h3>
+      <div id="cartItems">
+        <p class="muted">カートが空です（でも実は空ではないかも）</p>
+      </div>
+      <div class="summary">
+        <p>小計: <span id="subtotal">¥0</span></p>
+        <!-- 手数料をここではまだ表示しない（チェックアウト直前で驚かせるため） -->
+        <p class="fee-note">配達手数料等はチェックアウトで表示されます。</p>
+        <button class="tiny-btn" onclick="proceedCheckout()">チェックアウトへ</button>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- 意図的に小さなモーダルを複数出してユーザーを疲れさせる -->
+<div class="modal" id="modal1">
+  <div class="box">
+    <h3>確認1</h3>
+    <p>サイズを選びましたか？（選ばなくても進めます）</p>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+      <button class="tiny-btn" onclick="closeModal('modal1')">戻る</button>
+      <button class="tiny-btn" onclick="closeModal('modal1');openModal('modal2')">はい、次へ</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal2">
+  <div class="box">
+    <h3>確認2</h3>
+    <p>トッピングは必要ですか？（既定で全部入ります）</p>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+      <button class="tiny-btn" onclick="closeModal('modal2')">いいえ</button>
+      <button class="tiny-btn" onclick="closeModal('modal2')">はい</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---------- サンプルデータ生成（意図的に多くのカードを表示） ----------
+const sampleMenu = [];
+for(let i=1;i<=12;i++){
+  sampleMenu.push({
+    id:i,
+    name:`セットメニュー ${i}`,
+    desc:`人気No.${i} の説明文。長い説明をここに入れておきます。`,
+    price: 700 + i*50,
+    img: `https://picsum.photos/seed/bad${i}/400/300`
+  });
+}
+
+const grid = document.getElementById('menuGrid');
+const cartItemsEl = document.getElementById('cartItems');
+let cart = [];
+
+function renderMenu(){
+  grid.innerHTML='';
+  sampleMenu.forEach(item=>{
+    const card = document.createElement('div');
+    card.className='card';
+    card.innerHTML = `
+      <img src="${item.img}" alt="${item.name}">
+      <h4>${item.name}</h4>
+      <p>${item.desc}</p>
+      <div class="meta">
+        <span>¥${item.price}</span>
+        <div>
+          <button class="tiny-btn" onclick="openDetails(${item.id})">詳細</button>
+          <button class="tiny-btn" onclick="openModal('modal1')">注文</button>
+        </div>
+      </div>
+      <button class="add-btn" onclick="addToCart(${item.id})">＋</button>
+    `;
+    grid.appendChild(card);
+  })
+}
+
+function addToCart(id){
+  const it = sampleMenu.find(s=>s.id===id);
+  const found = cart.find(c=>c.id===id);
+  if(found) found.qty++;
+  else cart.push({id:it.id,name:it.name,price:it.price,qty:1});
+  renderCart();
+}
+
+function renderCart(){
+  cartItemsEl.innerHTML='';
+  if(cart.length===0){
+    cartItemsEl.innerHTML='<p class="muted">カートが空です（でも実は空ではないかも）</p>';
+  } else {
+    cart.forEach(ci=>{
+      const d = document.createElement('div');
+      d.className='item';
+      d.innerHTML = `<div>${ci.name} x ${ci.qty}</div><div>¥${ci.price*ci.qty}</div>`;
+      cartItemsEl.appendChild(d);
+    })
+  }
+  const subtotal = cart.reduce((s,c)=>s+c.price*c.qty,0);
+  document.getElementById('subtotal').innerText = `¥${subtotal}`;
+}
+
+function openDetails(id){
+  // 詳細は別画面で多数の選択肢を出す（煩雑）
+  alert('詳細画面（ここではダイアログではなく別画面でたくさんの選択肢が出ます）');
+}
+
+function openCart(){
+  const cartEl = document.getElementById('sideCart');
+  cartEl.style.display='block';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function applyFilters(){
+  // 適用してもあまり変わらない（Bad）
+  alert('フィルターを適用しました（でも検索精度は微妙です）');
+}
+
+function fakeSearch(){
+  alert('検索しました（しかし結果は絞り込まれていないことが多い）');
+}
+
+function proceedCheckout(){
+  if(cart.length===0){
+    alert('まずは商品をカートに入れてください');
+    return;
+  }
+  // チェックアウト直前で手数料を表示（驚きの要素）
+  const subtotal = cart.reduce((s,c)=>s+c.price*c.qty,0);
+  // 手数料を遅れて出す（Badな仕様を再現）
+  const fees = Math.floor(subtotal * 0.12) + 200; // サービス料＋配達料
+  // ここで突然手数料を足してユーザーを驚かせる
+  const confirmed = confirm(`小計: ¥${subtotal}\n追加手数料: ¥${fees}\n合計: ¥${subtotal + fees}\n\nこの金額で進みますか？`);
+  if(confirmed){
+    // 強制的に追加確認モーダルを出す
+    openModal('modal2');
+    setTimeout(()=>{
+      alert('注文が完了しました（要改善：確認・編集がしづらい）');
+      cart = []; renderCart();
+    },800);
+  }
+}
+
+function openModal(id){
+  document.getElementById(id).style.display='flex';
+}
+function closeModal(id){
+  document.getElementById(id).style.display='none';
+}
+
+// 初期描画
+renderMenu();
+renderCart();
+
+</script>
+
+<!--
+  ====== このHTML内の"どの部分がどのように使いづらいか"のメモ（コメント） ======
+  - ヘッダー: 住所・クーポン・ログインなどを一行に詰め込み、視線のノイズを増やす。
+  - promo-row: 複数のプロモーションを横スクロールで並べることで、重要情報が埋もれる（情報過多）。
+  - nav.global: 多段のカテゴリ／プルダウンを出してしまい、ナビゲーションが深くなって目的到達に時間がかかる（多階層ナビの悪例）。
+  - aside .filter-card: 絞り込みオプションが長く、適用ボタンが小さく見つけにくい。ユーザーが選んだ条件を確認しづらい。
+  - floating-banner: バナーを料理カードに被せるレイアウト。視認性を損ない、誤タップを誘発する。
+  - card: 詳細・注文用のボタンが小さく分かれ、主要なCTAが埋もれている。さらに「注文」ボタンがモーダルを多段で呼び出すため操作が煩雑。
+  - cart: 手数料をカート画面で表示せず、チェックアウト直前でしか明示しない設計。価格の透明性が低く離脱原因になる。
+  - モーダル群: 注文プロセスで必要以上に複数モーダルを出すことで認知負荷を上げる。
+
+  これらは「ユーザーが目的の料理にたどり着けない」「料金が突然増える」「選択を何度も確認させられる」と
+  いった具体的な使いづらさを再現しています。卒業制作のユーザーテストで、これらの要素がどのように離脱や混乱を
+  引き起こすか計測してください。
+-->
+
 </body>
 </html>
